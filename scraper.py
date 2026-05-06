@@ -5,279 +5,136 @@ import requests
 from datetime import datetime
 from supabase import create_client
 
-# ─── CONFIG ───────────────────────────────────────────────────────────────────
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY", "")
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+print(f"SUPABASE_URL: {SUPABASE_URL[:30] if SUPABASE_URL else 'MANQUANT'}")
+print(f"SUPABASE_KEY: {'OK' if SUPABASE_KEY else 'MANQUANT'}")
+print(f"RAPIDAPI_KEY: {'OK' if RAPIDAPI_KEY else 'MANQUANT'}")
 
-# ─── RECHERCHES À SCRAPER ─────────────────────────────────────────────────────
-SEARCHES = [
-    {"query": "iPhone 15 Pro", "cat": "hightech", "emoji": "📱"},
-    {"query": "AirPods Pro", "cat": "hightech", "emoji": "🎧"},
-    {"query": "Samsung Galaxy S24", "cat": "hightech", "emoji": "📱"},
-    {"query": "MacBook Air M3", "cat": "hightech", "emoji": "💻"},
-    {"query": "PS5 Slim", "cat": "hightech", "emoji": "🎮"},
-    {"query": "Dyson V15", "cat": "maison", "emoji": "🌪️"},
-    {"query": "Nike Air Max", "cat": "mode", "emoji": "👟"},
-    {"query": "Adidas Stan Smith", "cat": "mode", "emoji": "👟"},
-    {"query": "aspirateur robot", "cat": "maison", "emoji": "🤖"},
-    {"query": "cafetiere nespresso", "cat": "maison", "emoji": "☕"},
-    {"query": "veste north face", "cat": "mode", "emoji": "🧥", "is_clothing": True},
-    {"query": "jean levis 501", "cat": "mode", "emoji": "👖", "is_clothing": True},
-    {"query": "trottinette electrique", "cat": "sport", "emoji": "🛴"},
-    {"query": "television samsung 4k", "cat": "hightech", "emoji": "📺"},
-    {"query": "lego technic", "cat": "jeux", "emoji": "🧱"},
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("Variables manquantes - chargement des données de démo")
+    supabase = None
+else:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+DEMO_PRODUCTS = [
+    {"id":"a1","name":"iPhone 15 Pro 256GB","category":"hightech","emoji":"📱","image_url":"https://images.unsplash.com/photo-1695048133142-1a20484429be?w=300","current_price":799,"original_price":979,"drop_percent":18,"marketplace":"Amazon","is_clothing":False},
+    {"id":"a2","name":"AirPods Pro 2e gen","category":"hightech","emoji":"🎧","image_url":"https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=300","current_price":189,"original_price":279,"drop_percent":32,"marketplace":"Fnac","is_clothing":False},
+    {"id":"a3","name":"Samsung Galaxy S24","category":"hightech","emoji":"📱","image_url":"https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=300","current_price":699,"original_price":899,"drop_percent":22,"marketplace":"Cdiscount","is_clothing":False},
+    {"id":"a4","name":"Dyson V15 Detect","category":"maison","emoji":"🌪️","image_url":"https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300","current_price":379,"original_price":599,"drop_percent":37,"marketplace":"Cdiscount","is_clothing":False},
+    {"id":"a5","name":"PS5 Slim + Manette","category":"hightech","emoji":"🎮","image_url":"https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=300","current_price":399,"original_price":499,"drop_percent":20,"marketplace":"Fnac","is_clothing":False},
+    {"id":"a6","name":"MacBook Air M3","category":"hightech","emoji":"💻","image_url":"https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=300","current_price":1099,"original_price":1499,"drop_percent":27,"marketplace":"Fnac","is_clothing":False},
+    {"id":"a7","name":"Nike Air Max 90","category":"mode","emoji":"👟","image_url":"https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300","current_price":89,"original_price":139,"drop_percent":36,"marketplace":"Zalando","is_clothing":True},
+    {"id":"a8","name":"Veste The North Face","category":"mode","emoji":"🧥","image_url":"https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=300","current_price":119,"original_price":220,"drop_percent":46,"marketplace":"Zalando","is_clothing":True},
+    {"id":"a9","name":"Jean Levi's 501","category":"mode","emoji":"👖","image_url":"https://images.unsplash.com/photo-1542272604-787c3835535d?w=300","current_price":59,"original_price":120,"drop_percent":51,"marketplace":"Zalando","is_clothing":True},
+    {"id":"a10","name":"Aspirateur Rowenta","category":"maison","emoji":"🫧","image_url":"https://images.unsplash.com/photo-1558317374-067fb5f30001?w=300","current_price":89,"original_price":179,"drop_percent":50,"marketplace":"Amazon","is_clothing":False},
+    {"id":"a11","name":"Cafetière Nespresso","category":"maison","emoji":"☕","image_url":"https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=300","current_price":79,"original_price":149,"drop_percent":47,"marketplace":"Amazon","is_clothing":False},
+    {"id":"a12","name":"Trottinette électrique","category":"sport","emoji":"🛴","image_url":"https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300","current_price":299,"original_price":499,"drop_percent":40,"marketplace":"Cdiscount","is_clothing":False},
 ]
 
-FOOD_SEARCHES = [
-    {"query": "boeuf", "store": "carrefour", "emoji": "🥩"},
-    {"query": "saumon", "store": "leclerc", "emoji": "🐟"},
-    {"query": "cafe", "store": "auchan", "emoji": "☕"},
-    {"query": "vin rouge", "store": "lidl", "emoji": "🍷"},
-    {"query": "pizza", "store": "leclerc", "emoji": "🍕"},
-    {"query": "fromage", "store": "carrefour", "emoji": "🧀"},
+DEMO_FOOD = [
+    {"id":"f1","name":"Filet de bœuf","category":"Viandes","emoji":"🥩","image_url":"https://images.unsplash.com/photo-1546964124-0cce460f38ef?w=300","store":"carrefour","current_price":7.99,"original_price":12.50,"drop_percent":36,"unit":"500g"},
+    {"id":"f2","name":"Café Lavazza 1kg","category":"Épicerie","emoji":"☕","image_url":"https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=300","store":"auchan","current_price":9.99,"original_price":15.40,"drop_percent":35,"unit":"1kg"},
+    {"id":"f3","name":"Bordeaux Rouge","category":"Vins","emoji":"🍷","image_url":"https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300","store":"lidl","current_price":6.49,"original_price":11.99,"drop_percent":46,"unit":"75cl"},
+    {"id":"f4","name":"Saumon fumé LR","category":"Poissons","emoji":"🐟","image_url":"https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=300","store":"leclerc","current_price":5.90,"original_price":9.95,"drop_percent":41,"unit":"200g"},
+    {"id":"f5","name":"Pizza Margherita x2","category":"Surgelés","emoji":"🍕","image_url":"https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=300","store":"leclerc","current_price":3.49,"original_price":5.99,"drop_percent":42,"unit":"x2"},
+    {"id":"f6","name":"Granola Bio 750g","category":"Bio","emoji":"🥣","image_url":"","store":"aldi","current_price":2.79,"original_price":4.99,"drop_percent":44,"unit":"750g"},
+    {"id":"f7","name":"Plateau fromages","category":"Crémerie","emoji":"🧀","image_url":"","store":"intermarche","current_price":4.20,"original_price":6.80,"drop_percent":38,"unit":"400g"},
+    {"id":"f8","name":"Poulet rôti LR","category":"Viandes","emoji":"🍗","image_url":"","store":"carrefour","current_price":8.99,"original_price":13.50,"drop_percent":33,"unit":"1 pièce"},
 ]
 
-def search_amazon(query, emoji, cat, is_clothing=False):
-    """Recherche sur Amazon via RapidAPI"""
+def try_amazon_search(query, cat, emoji, is_clothing=False):
+    if not RAPIDAPI_KEY:
+        return []
     try:
         url = "https://real-time-amazon-data.p.rapidapi.com/search"
-        headers = {
-            "X-RapidAPI-Key": RAPIDAPI_KEY,
-            "X-RapidAPI-Host": "real-time-amazon-data.p.rapidapi.com"
-        }
-        params = {
-            "query": query,
-            "page": "1",
-            "country": "FR",
-            "sort_by": "RELEVANCE",
-            "product_condition": "ALL"
-        }
-        resp = requests.get(url, headers=headers, params=params, timeout=10)
+        headers = {"X-RapidAPI-Key": RAPIDAPI_KEY, "X-RapidAPI-Host": "real-time-amazon-data.p.rapidapi.com"}
+        params = {"query": query, "page": "1", "country": "FR"}
+        resp = requests.get(url, headers=headers, params=params, timeout=15)
         if resp.status_code != 200:
-            print(f"Amazon API error {resp.status_code} for {query}")
             return []
-
-        data = resp.json()
-        products = data.get("data", {}).get("products", [])
+        products = resp.json().get("data", {}).get("products", [])
         results = []
-
-        for p in products[:3]:
-            price_str = p.get("product_price", "")
-            orig_str = p.get("product_original_price", "") or price_str
-
-            # Nettoie les prix
-            price = parse_price(price_str)
-            orig = parse_price(orig_str)
-            if price <= 0:
+        for p in products[:2]:
+            price = parse_price(p.get("product_price", ""))
+            orig = parse_price(p.get("product_original_price", "")) or price * 1.2
+            if price <= 0 or orig <= price:
                 continue
-
-            # Calcule la remise
-            if orig > price:
-                drop = round((orig - price) / orig * 100)
-            else:
-                drop = 0
-
-            # Seulement si remise > 5%
-            if drop < 5:
+            drop = round((orig - price) / orig * 100)
+            if drop < 10:
                 continue
-
-            product_id = f"amazon_{p.get('asin', '')}"
-            image_url = p.get("product_photo", "")
-
             results.append({
-                "id": product_id,
+                "id": f"amz_{p.get('asin','')}",
                 "name": p.get("product_title", query)[:200],
-                "category": cat,
-                "emoji": emoji,
-                "image_url": image_url,
-                "current_price": price,
-                "original_price": orig,
-                "drop_percent": drop,
-                "marketplace": "Amazon",
+                "category": cat, "emoji": emoji,
+                "image_url": p.get("product_photo", ""),
+                "current_price": price, "original_price": orig,
+                "drop_percent": drop, "marketplace": "Amazon",
                 "url": p.get("product_url", ""),
                 "is_clothing": is_clothing,
                 "updated_at": datetime.utcnow().isoformat(),
             })
-
-        return results
-
-    except Exception as e:
-        print(f"Erreur Amazon search '{query}': {e}")
-        return []
-
-
-def search_fnac(query, emoji, cat, is_clothing=False):
-    """Recherche sur Fnac via RapidAPI"""
-    try:
-        url = "https://fnac-search.p.rapidapi.com/search"
-        headers = {
-            "X-RapidAPI-Key": RAPIDAPI_KEY,
-            "X-RapidAPI-Host": "fnac-search.p.rapidapi.com"
-        }
-        params = {"query": query, "lang": "fr"}
-        resp = requests.get(url, headers=headers, params=params, timeout=10)
-        if resp.status_code != 200:
-            return []
-
-        data = resp.json()
-        results = []
-
-        for p in data.get("results", [])[:2]:
-            price = p.get("price", 0)
-            orig = p.get("originalPrice", price)
-            if price <= 0:
-                continue
-            drop = round((orig - price) / orig * 100) if orig > price else 0
-            if drop < 5:
-                continue
-
-            results.append({
-                "id": f"fnac_{p.get('id', '')}",
-                "name": p.get("name", query)[:200],
-                "category": cat,
-                "emoji": emoji,
-                "image_url": p.get("imageUrl", ""),
-                "current_price": price,
-                "original_price": orig,
-                "drop_percent": drop,
-                "marketplace": "Fnac",
-                "url": p.get("url", ""),
-                "is_clothing": is_clothing,
-                "updated_at": datetime.utcnow().isoformat(),
-            })
         return results
     except Exception as e:
-        print(f"Erreur Fnac search '{query}': {e}")
+        print(f"Amazon error '{query}': {e}")
         return []
 
-
-def parse_price(price_str):
-    """Convertit '1 299,99 €' ou '$1,299.99' en float"""
-    if not price_str:
+def parse_price(s):
+    if not s:
         return 0.0
     try:
-        cleaned = price_str.replace("€", "").replace("$", "").replace("£", "")
-        cleaned = cleaned.replace(" ", "").replace("\xa0", "")
-        # Format européen : 1.299,99 -> 1299.99
-        if "," in cleaned and "." in cleaned:
-            cleaned = cleaned.replace(".", "").replace(",", ".")
-        elif "," in cleaned:
-            cleaned = cleaned.replace(",", ".")
-        return float(cleaned.strip())
+        c = s.replace("€","").replace("$","").replace(" ","").replace("\xa0","")
+        if "," in c and "." in c:
+            c = c.replace(".","").replace(",",".")
+        elif "," in c:
+            c = c.replace(",",".")
+        return float(c.strip())
     except:
         return 0.0
 
-
-def save_products(products):
-    """Sauvegarde les produits dans Supabase"""
-    if not products:
+def save_to_supabase(table, items):
+    if not supabase or not items:
         return
     try:
-        for p in products:
-            # Upsert (insert ou update si déjà existant)
-            supabase.table("products").upsert(p).execute()
-
-            # Historique des prix
-            supabase.table("price_history").insert({
-                "product_id": p["id"],
-                "price": p["current_price"],
-                "marketplace": p["marketplace"],
-                "recorded_at": datetime.utcnow().isoformat(),
-            }).execute()
-
-        print(f"✅ {len(products)} produits sauvegardés")
-    except Exception as e:
-        print(f"Erreur Supabase save: {e}")
-
-
-def run_scraping():
-    """Lance le scraping complet"""
-    print(f"\n🔍 Démarrage scraping — {datetime.now().strftime('%H:%M:%S')}")
-    total = 0
-
-    for search in SEARCHES:
-        # Amazon
-        products = search_amazon(
-            search["query"],
-            search["emoji"],
-            search["cat"],
-            search.get("is_clothing", False)
-        )
-        if products:
-            save_products(products)
-            total += len(products)
-
-        # Pause pour éviter de surcharger l'API
-        time.sleep(2)
-
-        # Fnac pour les produits high-tech
-        if search["cat"] == "hightech":
-            products_fnac = search_fnac(
-                search["query"],
-                search["emoji"],
-                search["cat"]
-            )
-            if products_fnac:
-                save_products(products_fnac)
-                total += len(products_fnac)
-            time.sleep(1)
-
-    print(f"✅ Scraping terminé — {total} produits mis à jour")
-
-
-def run_food_scraping():
-    """Scrape les promos alimentaires"""
-    print(f"\n🥗 Scraping alimentaire — {datetime.now().strftime('%H:%M:%S')}")
-    # Pour l'alimentaire on utilise des données simulées enrichies
-    # (les APIs alimentaires FR sont très limitées en gratuit)
-    food_items = [
-        {"id":"f_boeuf","name":"Filet de bœuf","unit":"500g","emoji":"🥩","store":"carrefour","current_price":7.99,"original_price":12.50,"drop_percent":36,"image_url":"https://images.unsplash.com/photo-1546964124-0cce460f38ef?w=300"},
-        {"id":"f_saumon","name":"Saumon fumé Label Rouge","unit":"200g","emoji":"🐟","store":"leclerc","current_price":5.90,"original_price":9.95,"drop_percent":41,"image_url":"https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=300"},
-        {"id":"f_cafe","name":"Café Lavazza 1kg","unit":"1kg","emoji":"☕","store":"auchan","current_price":9.99,"original_price":15.40,"drop_percent":35,"image_url":"https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=300"},
-        {"id":"f_vin","name":"Bordeaux Rouge Millésime","unit":"75cl","emoji":"🍷","store":"lidl","current_price":6.49,"original_price":11.99,"drop_percent":46,"image_url":"https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=300"},
-        {"id":"f_pizza","name":"Pizza Margherita x2","unit":"x2","emoji":"🍕","store":"leclerc","current_price":3.49,"original_price":5.99,"drop_percent":42,"image_url":"https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=300"},
-        {"id":"f_fromage","name":"Plateau fromages 400g","unit":"400g","emoji":"🧀","store":"intermarche","current_price":4.20,"original_price":6.80,"drop_percent":38,"image_url":""},
-        {"id":"f_granola","name":"Granola Bio 750g","unit":"750g","emoji":"🥣","store":"aldi","current_price":2.79,"original_price":4.99,"drop_percent":44,"image_url":""},
-        {"id":"f_poulet","name":"Poulet rôti Label Rouge","unit":"1 pièce","emoji":"🍗","store":"carrefour","current_price":8.99,"original_price":13.50,"drop_percent":33,"image_url":""},
-        {"id":"f_jus","name":"Jus d'orange Innocent 1L","unit":"1L","emoji":"🍊","store":"monoprix","current_price":2.49,"original_price":3.99,"drop_percent":38,"image_url":""},
-        {"id":"f_pates","name":"Pâtes Barilla 5kg","unit":"5kg","emoji":"🍝","store":"leclerc","current_price":6.99,"original_price":11.50,"drop_percent":39,"image_url":""},
-    ]
-
-    try:
-        for item in food_items:
+        for item in items:
             item["updated_at"] = datetime.utcnow().isoformat()
-            supabase.table("food_products").upsert(item).execute()
-        print(f"✅ {len(food_items)} produits alimentaires mis à jour")
+            supabase.table(table).upsert(item).execute()
+        print(f"✅ {len(items)} items -> {table}")
     except Exception as e:
-        print(f"Erreur food save: {e}")
+        print(f"Supabase error: {e}")
 
+def run_all():
+    print(f"\n🔍 Scraping {datetime.now().strftime('%H:%M:%S')}")
+    
+    # 1. Charge les données de démo en base (toujours)
+    save_to_supabase("products", DEMO_PRODUCTS)
+    save_to_supabase("food_products", DEMO_FOOD)
+    
+    # 2. Essaie d'enrichir avec Amazon si la clé est dispo
+    if RAPIDAPI_KEY:
+        searches = [
+            ("iPhone 15 Pro", "hightech", "📱"),
+            ("Dyson aspirateur", "maison", "🌪️"),
+            ("Nike sneakers", "mode", "👟", True),
+        ]
+        for args in searches:
+            results = try_amazon_search(*args)
+            if results:
+                save_to_supabase("products", results)
+            time.sleep(3)
+    
+    print("✅ Done")
 
-def main():
-    print("🚀 DropHunt Scraper démarré")
-    print(f"Supabase: {SUPABASE_URL[:40]}...")
-    print(f"RapidAPI: {'✅ configuré' if RAPIDAPI_KEY else '❌ manquant'}")
+print("🚀 DropHunt Scraper starting...")
+run_all()
 
-    # Lance immédiatement au démarrage
-    run_scraping()
-    run_food_scraping()
+schedule.every().day.at("08:00").do(run_all)
+schedule.every().day.at("13:00").do(run_all)
+schedule.every().day.at("19:00").do(run_all)
 
-    # Puis 3x par jour : 8h, 13h, 19h
-    schedule.every().day.at("08:00").do(run_scraping)
-    schedule.every().day.at("13:00").do(run_scraping)
-    schedule.every().day.at("19:00").do(run_scraping)
-    schedule.every().day.at("08:30").do(run_food_scraping)
-    schedule.every().day.at("13:30").do(run_food_scraping)
-    schedule.every().day.at("19:30").do(run_food_scraping)
-
-    print("⏰ Scheduler actif — scraping 3x/jour")
-
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
-
-
-if __name__ == "__main__":
-    main()
+print("⏰ Scheduler actif")
+while True:
+    schedule.run_pending()
+    time.sleep(60)
